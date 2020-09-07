@@ -48,6 +48,7 @@ function Problem(dev::Device=CPU();
            ν = 0.0,
           nν = 1,
            μ = 0.0,
+           nμ = 0,
   # Timestepper and equation options
      stepper = "RK4",
       calcFU = nothingfunction,
@@ -62,7 +63,7 @@ function Problem(dev::Device=CPU();
   # topographic PV
   eta === nothing && ( eta = zeros(dev, T, (nx, ny)) )
 
-  params = !(typeof(eta)<:ArrayType(dev)) ? Params(grid, β, eta, μ, ν, nν, calcFU, calcFq) : Params(β, eta, rfft(eta), μ, ν, nν, calcFU, calcFq)
+  params = !(typeof(eta)<:ArrayType(dev)) ? Params(grid, β, eta, μ, nμ, ν, nν, calcFU, calcFq) : Params(β, eta, rfft(eta), μ, nμ, ν, nν, calcFU, calcFq)
 
   vars = (calcFq == nothingfunction && calcFU == nothingfunction) ? Vars(dev, grid) : (stochastic ? StochasticForcedVars(dev, grid) : ForcedVars(dev, grid))
 
@@ -77,7 +78,7 @@ end
 # ----------
 
 """
-    Params(g::TwoDGrid, β, FU, eta, μ, ν, nν, calcFU, calcFq)
+    Params(g::TwoDGrid, β, FU, eta, μ, nμ, ν, nν, calcFU, calcFq)
 
 Returns the params for an unforced two-dimensional barotropic QG problem.
 """
@@ -85,7 +86,8 @@ struct Params{T, Aphys, Atrans} <: AbstractParams
         β :: T            # Planetary vorticity y-gradient
       eta :: Aphys        # Topographic PV
      etah :: Atrans       # FFT of Topographic PV
-        μ :: T            # Linear drag
+        μ :: T            # Linear drag/hypo-viscosity
+       nμ :: Int          # Hypo-viscous order (0=linear drag)
         ν :: T            # Viscosity coefficient
        nν :: Int          # Hyperviscous order (nν=1 is plain old viscosity)
    calcFU :: Function     # Function that calculates the forcing F(t) on
@@ -98,10 +100,10 @@ end
 
 Constructor for Params that accepts a generating function for the topographic PV.
 """
-function Params(grid::AbstractGrid{T, A}, β, eta::Function, μ, ν, nν::Int, calcFU, calcFq) where {T, A}
+function Params(grid::AbstractGrid{T, A}, β, eta::Function, μ, nμ, ν, nν::Int, calcFU, calcFq) where {T, A}
   etagrid = A([eta(grid.x[i], grid.y[j]) for i=1:grid.nx, j=1:grid.ny])
      etah = rfft(etagrid)
-  return Params(β, etagrid, etah, μ, ν, nν, calcFU, calcFq)
+  return Params(β, etagrid, etah, μ, nμ, ν, nν, calcFU, calcFq)
 end
 
 
@@ -115,7 +117,7 @@ end
 Returns the equation for two-dimensional barotropic QG problem with `params` and `grid`.
 """
 function Equation(params::Params, grid::AbstractGrid)
-  L = @. - params.μ - params.ν * grid.Krsq^params.nν + im * params.β * grid.kr * grid.invKrsq
+  L = @. - params.μ * grid.Krsq^params.nμ - params.ν * grid.Krsq^params.nν + im * params.β * grid.kr * grid.invKrsq
   CUDA.@allowscalar L[1, 1] = 0
   return FourierFlows.Equation(L, calcN!, grid)
 end
@@ -428,7 +430,7 @@ Returns the extraction of domain-averaged energy by drag μ.
 """
 @inline function drag(prob)
   sol, vars, params, grid = prob.sol, prob.vars, prob.params, prob.grid
-  @. vars.uh = grid.invKrsq * abs2(sol)
+  @. vars.uh = grid.invKrsq^(params.nμ - 1) * abs2(sol)
   CUDA.@allowscalar vars.uh[1, 1] = 0
   return params.μ / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
@@ -440,7 +442,7 @@ Returns the extraction of domain-averaged enstrophy by drag/hypodrag μ.
 """
 @inline function drag_ens(prob)
   sol, vars, params, grid = prob.sol, prob.vars, prob.params, prob.grid
-  @. vars.uh = grid.Krsq^0.0 * abs2(sol)
+  @. vars.uh = grid.Krsq^params.nμ * abs2(sol)
   vars.uh[1, 1] = 0
   return params.μ / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
