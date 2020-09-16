@@ -87,9 +87,9 @@ sitename = "GeophysicalFlows.jl",
 #              "MultilayerQG" => Any[
 #                "generated/multilayerqg_2layer.md"
 #                ],
-              "SurfaceQG" => Any[
-                "generated/surfaceqg_decaying.md"
-                ]
+#              "SurfaceQG" => Any[
+#                "generated/surfaceqg_decaying.md"
+#                ]
             ],
             "DocStrings" => Any[
             "man/types.md",
