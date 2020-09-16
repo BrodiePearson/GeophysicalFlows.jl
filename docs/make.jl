@@ -19,14 +19,14 @@ const EXAMPLES_DIR = joinpath(@__DIR__, "..", "examples")
 const OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
 examples = [
-    "twodnavierstokes_decaying.jl",
-    "twodnavierstokes_stochasticforcing.jl",
-    "barotropicqg_betadecay.jl",
-    "barotropicqg_betaforced.jl",
-    "barotropicqg_acc.jl",
-    "barotropicqgql_betaforced.jl",
-    "multilayerqg_2layer.jl",
-    "surfaceqg_decaying.jl",
+#    "twodnavierstokes_decaying.jl",
+#    "twodnavierstokes_stochasticforcing.jl",
+#    "barotropicqg_betadecay.jl",
+#    "barotropicqg_betaforced.jl",
+#    "barotropicqg_acc.jl",
+#    "barotropicqgql_betaforced.jl",
+#    "multilayerqg_2layer.jl",
+#    "surfaceqg_decaying.jl",
 ]
 
 for example in examples
@@ -72,21 +72,21 @@ sitename = "GeophysicalFlows.jl",
               "modules/surfaceqg.md"
             ],
             "Examples" => [
-              "TwoDNavierStokes" => Any[
-                "generated/twodnavierstokes_decaying.md",
-                "generated/twodnavierstokes_stochasticforcing.md",
-                ],
-              "BarotropicQG" => Any[
-                "generated/barotropicqg_betadecay.md",
-                "generated/barotropicqg_betaforced.md",
-                "generated/barotropicqg_acc.md",
-                ],
-              "BarotropicQGQL" => Any[
-                "generated/barotropicqgql_betaforced.md",
-                ],
-              "MultilayerQG" => Any[
-                "generated/multilayerqg_2layer.md"
-                ],
+#              "TwoDNavierStokes" => Any[
+#                "generated/twodnavierstokes_decaying.md",
+#                "generated/twodnavierstokes_stochasticforcing.md",
+#                ],
+#              "BarotropicQG" => Any[
+#                "generated/barotropicqg_betadecay.md",
+#                "generated/barotropicqg_betaforced.md",
+#                "generated/barotropicqg_acc.md",
+#                ],
+#              "BarotropicQGQL" => Any[
+#                "generated/barotropicqgql_betaforced.md",
+#                ],
+#              "MultilayerQG" => Any[
+#                "generated/multilayerqg_2layer.md"
+#                ],
               "SurfaceQG" => Any[
                 "generated/surfaceqg_decaying.md"
                 ]
