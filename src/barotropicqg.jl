@@ -120,8 +120,8 @@ Returns the equation for two-dimensional barotropic QG problem with `params` and
     This version has a general β direction: β̲⋅y̲ = β and β̲⋅x̲ = βₓ
 """
 function Equation(params::Params, grid::AbstractGrid)
-  L = @. - params.μ * grid.Krsq^params.nμ - params.ν * grid.Krsq^params.nν
-  @. L += im * ( params.β * grid.kr - params.βₓ * grid.l ) * grid.invKrsq
+  L = @. - params.μ * grid.Krsq^params.nμ - params.ν * grid.Krsq^params.nν + im * ( params.β * grid.kr - params.βₓ * grid.l ) * grid.invKrsq
+  #L += @. im * ( params.β * grid.kr - params.βₓ * grid.l ) * grid.invKrsq
   CUDA.@allowscalar L[1, 1] = 0
   return FourierFlows.Equation(L, calcN!, grid)
 end
