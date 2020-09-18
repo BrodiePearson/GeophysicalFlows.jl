@@ -43,6 +43,7 @@ function Problem(dev::Device=CPU();
           dt = 0.01,
   # Physical parameters
            β = 0.0,
+          βₓ = 0.0,
          eta = nothing,
   # Drag and/or hyper-/hypo-viscosity
            ν = 0.0,
@@ -63,7 +64,7 @@ function Problem(dev::Device=CPU();
   # topographic PV
   eta === nothing && ( eta = zeros(dev, T, (nx, ny)) )
 
-  params = !(typeof(eta)<:ArrayType(dev)) ? Params(grid, β, eta, μ, nμ, ν, nν, calcFU, calcFq) : Params(β, eta, rfft(eta), μ, nμ, ν, nν, calcFU, calcFq)
+  params = !(typeof(eta)<:ArrayType(dev)) ? Params(grid, β, βₓ, eta, μ, nμ, ν, nν, calcFU, calcFq) : Params(β, βₓ, eta, rfft(eta), μ, nμ, ν, nν, calcFU, calcFq)
 
   vars = (calcFq == nothingfunction && calcFU == nothingfunction) ? Vars(dev, grid) : (stochastic ? StochasticForcedVars(dev, grid) : ForcedVars(dev, grid))
 
@@ -78,12 +79,13 @@ end
 # ----------
 
 """
-    Params(g::TwoDGrid, β, FU, eta, μ, nμ, ν, nν, calcFU, calcFq)
+    Params(g::TwoDGrid, β, βₓ, FU, eta, μ, nμ, ν, nν, calcFU, calcFq)
 
 Returns the params for an unforced two-dimensional barotropic QG problem.
 """
 struct Params{T, Aphys, Atrans} <: AbstractParams
         β :: T            # Planetary vorticity y-gradient
+       βₓ :: T            # Planetary vorticity x-gradient
       eta :: Aphys        # Topographic PV
      etah :: Atrans       # FFT of Topographic PV
         μ :: T            # Linear drag/hypo-viscosity
@@ -96,14 +98,14 @@ struct Params{T, Aphys, Atrans} <: AbstractParams
 end
 
 """
-    Params(g::TwoDGrid, β, eta::Function, μ, ν, nν, calcFU, calcFq)
+    Params(g::TwoDGrid, β, βₓ, eta::Function, μ, ν, nν, calcFU, calcFq)
 
 Constructor for Params that accepts a generating function for the topographic PV.
 """
-function Params(grid::AbstractGrid{T, A}, β, eta::Function, μ, nμ, ν, nν::Int, calcFU, calcFq) where {T, A}
+function Params(grid::AbstractGrid{T, A}, β, βₓ, eta::Function, μ, nμ, ν, nν::Int, calcFU, calcFq) where {T, A}
   etagrid = A([eta(grid.x[i], grid.y[j]) for i=1:grid.nx, j=1:grid.ny])
      etah = rfft(etagrid)
-  return Params(β, etagrid, etah, μ, nμ, ν, nν, calcFU, calcFq)
+  return Params(β, βₓ, etagrid, etah, μ, nμ, ν, nν, calcFU, calcFq)
 end
 
 
@@ -115,9 +117,11 @@ end
     Equation(params, grid)
 
 Returns the equation for two-dimensional barotropic QG problem with `params` and `grid`.
+    This version has a general β direction: β̲⋅y̲ = β and β̲⋅x̲ = βₓ
 """
 function Equation(params::Params, grid::AbstractGrid)
-  L = @. - params.μ * grid.Krsq^params.nμ - params.ν * grid.Krsq^params.nν + im * params.β * grid.kr * grid.invKrsq
+  L = @. - params.μ * grid.Krsq^params.nμ - params.ν * grid.Krsq^params.nν
+  @. L += im * ( params.β * grid.kr - params.βₓ * grid.l ) * grid.invKrsq
   CUDA.@allowscalar L[1, 1] = 0
   return FourierFlows.Equation(L, calcN!, grid)
 end
