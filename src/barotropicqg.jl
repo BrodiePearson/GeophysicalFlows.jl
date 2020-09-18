@@ -9,12 +9,12 @@ export
   enstrophy,
   meanenergy,
   meanenstrophy,
-  dissipation,
-  work,
-  drag,
-  drag_ens,
-  work_ens,
-  dissipation_ens
+  energy_dissipation,
+  energy_work,
+  energy_drag,
+  enstrophy_drag,
+  enstrophy_work,
+  enstrophy_dissipation
 
 using
   CUDA,
@@ -359,11 +359,11 @@ Returns the enstrophy of the domain-averaged U.
 meanenstrophy(prob) = CUDA.@allowscalar real(prob.params.β * prob.sol[1, 1])
 
 """
-    dissipation_ens(prob)
+    enstrophy_dissipation(prob)
 
 Returns the domain-averaged dissipation rate of enstrophy. nν must be >= 1.
 """
-@inline function dissipation_ens(prob)
+@inline function enstrophy_dissipation(prob)
   sol, vars, params, grid = prob.sol, prob.vars, prob.params, prob.grid
   @. vars.uh = grid.Krsq^params.nν * abs2(sol)
   vars.uh[1, 1] = 0
@@ -371,64 +371,62 @@ Returns the domain-averaged dissipation rate of enstrophy. nν must be >= 1.
 end
 
 """
-    dissipation(prob)
-    dissipation(sol, vars, params, grid)
+    energy_dissipation(prob)
+    energy_dissipation(sol, vars, params, grid)
 
 Returns the domain-averaged dissipation rate. nν must be >= 1.
 """
-@inline function dissipation(sol, vars, params, grid)
+@inline function energy_dissipation(sol, vars, params, grid)
   @. vars.uh = grid.Krsq^(params.nν-1) * abs2(sol)
   CUDA.@allowscalar vars.uh[1, 1] = 0
   return params.ν / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
 
-@inline dissipation(prob) = dissipation(prob.sol, prob.vars, prob.params, prob.grid)
+@inline energy_dissipation(prob) = energy_dissipation(prob.sol, prob.vars, prob.params, prob.grid)
 
 """
-    work(prob)
-    work(sol, vars, grid)
+    energy_work(prob)
+    energy_work(sol, vars, grid)
 
 Returns the domain-averaged rate of work of energy by the forcing Fqh.
 """
-@inline function work(sol, vars::ForcedVars, grid)
+@inline function energy_work(sol, vars::ForcedVars, grid)
   @. vars.uh = grid.invKrsq * sol * conj(vars.Fqh)
   return 1 / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
 
-@inline function work(sol, vars::StochasticForcedVars, grid)
+@inline function energy_work(sol, vars::StochasticForcedVars, grid)
   @. vars.uh = grid.invKrsq * (vars.prevsol + sol)/2 * conj(vars.Fqh) # Stratonovich
-  # @. vars.uh = grid.invKrsq * vars.prevsol * conj(vars.Fqh)             # Ito
   return 1 / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
 
-@inline work(prob) = work(prob.sol, prob.vars, prob.grid)
+@inline energy_work(prob) = energy_work(prob.sol, prob.vars, prob.grid)
 
 """
-    work_ens(prob)
-    work_ens(sol, v, grid)
+    enstrophy_work(prob)
+    enstrophy_work(sol, v, grid)
 
 Returns the domain-averaged rate of work of enstrophy by the forcing Fh.
 """
-@inline function work_ens(sol, vars::ForcedVars, grid)
+@inline function enstrophy_work(sol, vars::ForcedVars, grid)
   @. vars.uh = sol * conj(vars.Fqh)
   return 1 / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
 
-@inline function work_ens(sol, vars::StochasticForcedVars, grid)
+@inline function enstrophy_work(sol, vars::StochasticForcedVars, grid)
   @. vars.uh = (vars.prevsol + sol) / 2 * conj(vars.Fqh) # Stratonovich
-  # @. vars.uh = grid.invKrsq * vars.prevsol * conj(vars.Fh)           # Ito
   return 1 / (grid.Lx * grid.Ly) * parsevalsum(vars.uh, grid)
 end
 
-@inline work_ens(prob) = work_ens(prob.sol, prob.vars, prob.grid)
+@inline enstrophy_work(prob) = enstrophy_work(prob.sol, prob.vars, prob.grid)
 
 """
-    drag(prob)
-    drag(sol, vars, params, grid)
+    energy_drag(prob)
+    energy_drag(sol, vars, params, grid)
 
 Returns the extraction of domain-averaged energy by drag μ.
 """
-@inline function drag(prob)
+@inline function energy_drag(prob)
   sol, vars, params, grid = prob.sol, prob.vars, prob.params, prob.grid
   @. vars.uh = grid.Krsq^(params.nμ - 1) * abs2(sol)
   CUDA.@allowscalar vars.uh[1, 1] = 0
@@ -436,11 +434,11 @@ Returns the extraction of domain-averaged energy by drag μ.
 end
 
 """
-    drag_ens(prob)
+    enstrophy_drag(prob)
 
 Returns the extraction of domain-averaged enstrophy by drag/hypodrag μ.
 """
-@inline function drag_ens(prob)
+@inline function enstrophy_drag(prob)
   sol, vars, params, grid = prob.sol, prob.vars, prob.params, prob.grid
   @. vars.uh = grid.Krsq^params.nμ * abs2(sol)
   vars.uh[1, 1] = 0
