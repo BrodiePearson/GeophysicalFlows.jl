@@ -42,6 +42,9 @@ function Problem(dev::Device=CPU();
           nν = 1,
            μ = 0,
           nμ = 0,
+  # Beta term - in SQG this represents large-scale buoyancy gradients
+  # See for example, Lapeyre 2017, doi:10.3390/fluids2010007
+           β = 0,
   # Timestepper and equation options
      stepper = "RK4",
        calcF = nothingfunction,
@@ -50,7 +53,7 @@ function Problem(dev::Device=CPU();
 
   grid = TwoDGrid(dev, nx, Lx, ny, Ly; T=T)
 
-  params = Params{T}(ν, nν, μ, nμ, calcF)
+  params = Params{T}(ν, nν, μ, nμ, β, calcF)
 
   vars = calcF == nothingfunction ? DecayingVars(dev, grid) : (stochastic ? StochasticForcedVars(dev, grid) : ForcedVars(dev, grid))
 
@@ -80,6 +83,8 @@ struct Params{T} <: AbstractParams
        μ :: T
     "buoyancy (hypo)-viscosity order"
       nμ :: Int
+    "beta term (meridional temperature gradient)"
+       β :: T
     "function that calculates the Fourier transform of the forcing, ``F̂``"
   calcF! :: Function
 end
@@ -107,7 +112,7 @@ Plain old viscocity corresponds to ``n_ν=1`` while ``n_μ=0`` corresponds to li
 The nonlinear term is computed via function `calcN!()`.
 """
 function Equation(params::Params, grid::AbstractGrid)
-  L = @. - params.ν * grid.Krsq^params.nν - params.μ * grid.Krsq^params.nμ
+  L = @. - params.ν * grid.Krsq^params.nν - params.μ * grid.Krsq^params.nμ - params.β * im * grid.kr * sqrt(grid.invKrsq)
   CUDA.@allowscalar L[1, 1] = 0
 
   return FourierFlows.Equation(L, calcN!, grid)
